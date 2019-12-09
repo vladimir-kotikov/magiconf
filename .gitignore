@@ -1,0 +1,15 @@
+
+bin
+dist
+include
+lib
+pyvenv.cfg
+
+.coverage
+/htmlcov
+.mypy_cache
+.pytest_cache
+__pycache__
+
+*.egg-info
+**/*.pyc
