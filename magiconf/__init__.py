@@ -47,18 +47,18 @@ def load_config(
 
 def load(conf_cls: Type[T], env_prefix: Optional[str] = None):
     field_names = [f.name for f in fields(conf_cls)]
-    content = ""
-    try:
-        with open("config.ini", "r") as f:
-            content = f.read()
-    except IOError:
-        pass
-
     sources = [
         load_flags(field_names),
         load_env(field_names, env_prefix),
-        load_config(field_names, content),
     ]
+
+    try:
+        with open("config.ini", "r") as f:
+            content = f.read()
+            sources.append(load_config(field_names, content))
+    except IOError:
+        pass
+
     return _load(conf_cls, sources)
 
 
