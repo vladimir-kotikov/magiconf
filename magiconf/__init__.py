@@ -72,7 +72,7 @@ def _load(conf_cls: Type[T], sources: List[Dict[str, Any]]) -> T:
         else:
             is_requried = (
                 getattr(field, "default", None) == MISSING
-                or getattr(field, "default_factory", None) == MISSING
+                and getattr(field, "default_factory", None) == MISSING
             )
             if is_requried:
                 raise ConfigError(f"{field.name} is required but is missing")
