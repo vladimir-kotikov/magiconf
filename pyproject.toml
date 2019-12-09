@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magiconf"
-version = "0.1.0"
+version = "0.1.1"
 description = "A small library to automagically load and parse configuration from either environment, configuration file or command line arguments."
 authors = ["Vladimir Kotikov <kotikov.vladimir@gmail.com>"]
 license = "MIT"
