@@ -1,10 +1,11 @@
-name: Lint and test
+name: Publish
 
 on:
   push:
     branches:
       - master
-  pull_request:
+    tags:
+      - "*"
 
 jobs:
   build:
@@ -23,3 +24,5 @@ jobs:
         run: poetry run make lint && git diff --exit-code
       - name: Test
         run: poetry run make test
+      - name: Publish
+        run: poetry publish --build -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }}
