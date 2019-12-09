@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from magiconf import _load, ConfigError
-from pytest import raises
+from pytest import raises  # type: ignore
 
 
 @dataclass

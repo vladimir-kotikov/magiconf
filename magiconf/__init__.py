@@ -28,7 +28,9 @@ def load_env(fields: List[str], env_prefix: Optional[str] = None) -> Dict[str, s
         prefixed_fields = [(prefix + name).lower() for name in fields]
 
     return {
-        k.lower()[len(prefix) :]: v
+        # fmt: off
+        k.lower()[len(prefix):]: v
+        # fmt: on
         for k, v in os.environ.items()
         if k.lower() in prefixed_fields
     }
@@ -68,12 +70,18 @@ def _load(conf_cls: Type[T], sources: List[Dict[str, Any]]) -> T:
                 init_kw[field.name] = src[field.name]
                 break
         else:
-            if field.default == MISSING and field.default_factory == MISSING:
+            is_requried = (
+                getattr(field, "default", None) == MISSING
+                or getattr(field, "default_factory", None) == MISSING
+            )
+            if is_requried:
                 raise ConfigError(f"{field.name} is required but is missing")
 
         if field.name in init_kw and not isinstance(init_kw[field.name], field.type):
             raise TypeError(
-                f"{field.name} is of wrong type ({type(init_kw[field.name])}, expected {field.type})"
+                "{} is of wrong type ({}, expected {})".format(
+                    field.name, type(init_kw[field.name]), field.type
+                )
             )
 
-    return conf_cls(**init_kw)
+    return conf_cls(**init_kw)  # type: ignore
