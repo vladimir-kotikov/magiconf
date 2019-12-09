@@ -20,6 +20,10 @@ jobs:
     - name: Install dependencies
       run: poetry install
     - name: Lint
-      run: make lint && git diff --exit-code
+      run: |
+        poetry shell
+        make lint && git diff --exit-code
     - name: Test
-      run: make test
+      run: |
+        poetry shell
+        make test
