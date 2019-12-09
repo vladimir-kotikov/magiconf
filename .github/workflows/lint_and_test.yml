@@ -16,12 +16,10 @@ jobs:
       with:
         python-version: 3.7
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
+      uses: abatilo/actions-poetry@v1.0.0
+      with:
+        args: install
     - name: Lint
-      run: |
-        make lint && git diff --exit-code
+      run: make lint && git diff --exit-code
     - name: Test
-      run: |
-        make test
+      run: make test
