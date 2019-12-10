@@ -1,24 +1,13 @@
 import os
-from argparse import ArgumentParser
 from configparser import ConfigParser
 from dataclasses import MISSING, fields
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-
-class ConfigError(Exception):
-    pass
+from magiconf.flags import load_flags
+from magiconf.errors import ConfigError
 
 
 T = TypeVar("T")
-
-
-def load_flags(flags: List[str]) -> Dict[str, str]:
-    parser = ArgumentParser()
-    for f in flags:
-        parser.add_argument(f"--{f}")
-
-    parsed, _ = parser.parse_known_args()
-    return {k: v for k, v in parsed.__dict__.items() if v is not None}
 
 
 def load_env(fields: List[str], env_prefix: Optional[str] = None) -> Dict[str, str]:
@@ -47,8 +36,8 @@ def load_config(
 
 def load(conf_cls: Type[T], env_prefix: Optional[str] = None):
     field_names = [f.name for f in fields(conf_cls)]
-    sources = [
-        load_flags(field_names),
+    sources: List[Dict[str, Any]] = [
+        load_flags(fields(conf_cls)),
         load_env(field_names, env_prefix),
     ]
 
