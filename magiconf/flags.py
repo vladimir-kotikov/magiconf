@@ -1,11 +1,11 @@
 from argparse import ArgumentParser
 from dataclasses import Field
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 from magiconf.errors import ConfigError
 
 
-def boolean(val):
+def boolean(val: Optional[str]) -> bool:
     if val is None or val == "":
         return True
 
@@ -18,6 +18,16 @@ def boolean(val):
     raise ConfigError(f"{val} is not a boolean value")
 
 
+def string(val: Optional[str]) -> Optional[str]:
+    if val is not None:
+        # Strip out pair end quotes so e.g. -foo="bar baz" resulting in
+        # \"bar baz \" would return without quotes which is more natural
+        while len(val) >= 2 and val[0] == val[-1] == '"':
+            val = val[1:-1]
+
+    return val
+
+
 class ArgumentConfigParser(ArgumentParser):
     def error(self, message):
         raise ConfigError(message)
@@ -27,17 +37,12 @@ def load_flags(fields: Iterable[Field]) -> Dict[str, str]:
     p = ArgumentConfigParser()
     for f in fields:
         # Use append to support specifying argument multiple times
-        kwargs = {"action": "append", "type": f.type, "nargs": "?"}
-        if f.type == bool:
-            # We don't use store_true as it sets up False as default value
-            # which might me unwanted, e.g. when default value in class is set
-            # to True
-            kwargs = {
-                "action": "append",
-                "type": boolean,
-                "nargs": "?",
-                "const": "",
-            }
+        kwargs = {"action": "append", "nargs": "?", "type": f.type}
+        if f.type == str:
+            kwargs["type"] = string
+        elif f.type == bool:
+            kwargs["const"] = ""
+            kwargs["type"] = boolean
 
             # Add --no- version of the flag to support setting falsy values
             p.add_argument(
@@ -50,16 +55,15 @@ def load_flags(fields: Iterable[Field]) -> Dict[str, str]:
 
     result = {}
     for k, v in parsed.__dict__.items():
-        if v is None:
-            continue
-
+        val = v
         if isinstance(v, list):
             if len(v) > 1:
                 raise ConfigError(f"--{k} specified multiple times")
 
             if len(v) != 0:
-                result[k] = v[0]
-        else:
-            result[k] = v
+                val = v[0]
+
+        if val is not None:
+            result[k] = val
 
     return result

@@ -1,7 +1,9 @@
-from magiconf import load_flags, ConfigError
-from unittest.mock import patch
 from dataclasses import dataclass, fields
+from unittest.mock import patch
+
 from pytest import raises  # type: ignore
+
+from magiconf import ConfigError, load_flags
 
 
 @dataclass
@@ -11,8 +13,9 @@ class Config:
     baz: bool
 
 
-def test_ok():
-    assert load_flags(fields(Config)) == {}
+def test_no_args():
+    with patch("sys.argv", ["prog"]):
+        assert load_flags(fields(Config)) == {}
 
 
 def test_ignores_unknown_args():
@@ -20,21 +23,17 @@ def test_ignores_unknown_args():
         assert load_flags(fields(Config)) == {}
 
 
+def test_rejects_ambiguous_flags():
+    with patch("sys.argv", ["prog", "--baz=True", "--baz=false", "--baz"]):
+        with raises(ConfigError, match="--baz"):
+            load_flags(fields(Config))
+
+
 class TestBoolean:
-    def test_with_defaults(self):
-        @dataclass
-        class Config:
-            foo: bool = True
-            bar: bool = False
-
-        with patch("sys.argv", ["prog"]):
-            # Should be empty as load_flags is not concerned about default values
-            assert load_flags(fields(Config)) == {}
-
-    def test_with_required(self):
-        with patch("sys.argv", ["prog"]):
-            # Should not raise as this is a caller's responsibility
-            assert load_flags(fields(Config)) == {}
+    def test_raises_on_invalid_value(self):
+        with raises(ConfigError):
+            with patch("sys.argv", ["prog", "--baz=quux"]):
+                load_flags(fields(Config))
 
     def test_parses_bool_flag(self):
         with patch("sys.argv", ["prog", "--baz"]):
@@ -52,7 +51,26 @@ class TestBoolean:
         with patch("sys.argv", ["prog", "--no-baz"]):
             assert load_flags(fields(Config)) == {"baz": False}
 
-    def test_rejects_multiple_flags(self):
-        with patch("sys.argv", ["prog", "--baz=True", "--baz=false", "--baz"]):
-            with raises(ConfigError, match="--baz"):
-                load_flags(fields(Config))
+
+class TestString:
+    def test_with_no_value(self):
+        with patch("sys.argv", ["prog", "--foo"]):
+            assert load_flags(fields(Config)) == {}
+
+    def test_parses_string_flag(self):
+        with patch("sys.argv", ["prog", "--foo", "bar"]):
+            assert load_flags(fields(Config)) == {"foo": "bar"}
+
+        with patch("sys.argv", ["prog", "--foo=bar"]):
+            assert load_flags(fields(Config)) == {"foo": "bar"}
+
+    def test_parses_strings_with_whitespace(self):
+        with patch("sys.argv", ["prog", "--foo", "bar baz quux"]):
+            assert load_flags(fields(Config)) == {"foo": "bar baz quux"}
+
+        with patch("sys.argv", ["prog", '--foo="bar baz quux"']):
+            assert load_flags(fields(Config)) == {"foo": "bar baz quux"}
+
+    def test_parses_strings_with_quotes(self):
+        with patch("sys.argv", ["prog", "--foo", 'bar="baz"']):
+            assert load_flags(fields(Config)) == {"foo": 'bar="baz"'}
