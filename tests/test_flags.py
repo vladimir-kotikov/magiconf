@@ -1,7 +1,7 @@
 from dataclasses import dataclass, fields
 from unittest.mock import patch
 
-from pytest import raises  # type: ignore
+from pytest import mark, raises  # type: ignore
 
 from magiconf import ConfigError, load_flags
 
@@ -74,3 +74,32 @@ class TestString:
     def test_parses_strings_with_quotes(self):
         with patch("sys.argv", ["prog", "--foo", 'bar="baz"']):
             assert load_flags(fields(Config)) == {"foo": 'bar="baz"'}
+
+
+class TestInt:
+    mark.parametrize("val", ("10", "0b1010", "0o12", "0xa"))
+
+    def test_parses_ok(self, val):
+        with patch("sys.argv", ["prog", "--bar", val]):
+            assert load_flags(fields(Config)) == {"bar": 10}
+
+            with patch("sys.argv", ["prog", f"--bar={val}"]):
+                assert load_flags(fields(Config)) == {"bar": 10}
+
+    mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
+
+    def test_parses_negative_numbers(self, val):
+        with patch("sys.argv", ["prog", f"--bar={val}"]):
+            assert load_flags(fields(Config)) == {"bar": -10}
+
+    mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
+
+    def test_parses_quoted_negative_numbers(self, val):
+        with patch("sys.argv", ["prog", f"--bar", f'"{val}"']):
+            res = load_flags(fields(Config))
+            assert res == {"bar": -10}
+
+    def test_fails_on_invalid_value(self):
+        with raises(ConfigError):
+            with patch("sys.argv", ["prog", "--bar", "buff"]):
+                load_flags(fields(Config))

@@ -5,6 +5,13 @@ from typing import Dict, Iterable, Optional
 from magiconf.errors import ConfigError
 
 
+def _unquote(val: str) -> str:
+    while len(val) >= 2 and val[0] == val[-1] == '"':
+        val = val[1:-1]
+
+    return val
+
+
 def boolean(val: Optional[str]) -> bool:
     if val is None or val == "":
         return True
@@ -18,14 +25,43 @@ def boolean(val: Optional[str]) -> bool:
     raise ConfigError(f"{val} is not a boolean value")
 
 
+def integer(val: Optional[str]) -> Optional[int]:
+    if val is None:
+        return val
+
+    # Strip out quotes so that quoted negative integers are parsed properly
+    # (quoting is required due to argument parser treating unquoted words with
+    # "minus" sign as flags)
+    base = 10
+    val = _unquote(val)
+    unsigned_val = val.lower().lstrip("-+")
+    if unsigned_val.startswith("0b"):
+        base = 2
+    elif unsigned_val.startswith("0o"):
+        base = 8
+    elif unsigned_val.startswith("0x"):
+        base = 16
+
+    try:
+        return int(val, base)
+    except TypeError:
+        raise ConfigError(f"{val} is not an integer value")
+
+
 def string(val: Optional[str]) -> Optional[str]:
     if val is not None:
         # Strip out pair end quotes so e.g. -foo="bar baz" resulting in
         # \"bar baz \" would return without quotes which is more natural
-        while len(val) >= 2 and val[0] == val[-1] == '"':
-            val = val[1:-1]
+        return _unquote(val)
 
     return val
+
+
+type_parsers = {
+    int: integer,
+    str: string,
+    bool: boolean,
+}
 
 
 class ArgumentConfigParser(ArgumentParser):
@@ -36,14 +72,14 @@ class ArgumentConfigParser(ArgumentParser):
 def load_flags(fields: Iterable[Field]) -> Dict[str, str]:
     p = ArgumentConfigParser()
     for f in fields:
-        # Use append to support specifying argument multiple times
-        kwargs = {"action": "append", "nargs": "?", "type": f.type}
-        if f.type == str:
-            kwargs["type"] = string
-        elif f.type == bool:
-            kwargs["const"] = ""
-            kwargs["type"] = boolean
+        try:
+            # Use append to support specifying argument multiple times
+            kwargs = {"action": "append", "nargs": "?", "type": type_parsers[f.type]}
+        except KeyError:
+            raise ConfigError(f"type {f.type} is not supported")
 
+        if f.type == bool:
+            kwargs["const"] = ""
             # Add --no- version of the flag to support setting falsy values
             p.add_argument(
                 f"--no-{f.name}", action="store_const", const=False, dest=f.name
