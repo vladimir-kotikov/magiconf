@@ -1,28 +1,12 @@
-import os
 from configparser import ConfigParser
 from dataclasses import MISSING, fields
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from magiconf.flags import load_flags
+from magiconf.env import load_env
 from magiconf.errors import ConfigError
-
+from magiconf.flags import load_flags
 
 T = TypeVar("T")
-
-
-def load_env(fields: List[str], env_prefix: Optional[str] = None) -> Dict[str, str]:
-    prefix, prefixed_fields = "", [*fields]
-    if env_prefix is not None:
-        prefix = f"{env_prefix.rstrip('_')}_"
-        prefixed_fields = [(prefix + name).lower() for name in fields]
-
-    return {
-        # fmt: off
-        k.lower()[len(prefix):]: v
-        # fmt: on
-        for k, v in os.environ.items()
-        if k.lower() in prefixed_fields
-    }
 
 
 def load_config(
@@ -35,15 +19,15 @@ def load_config(
 
 
 def load(conf_cls: Type[T], env_prefix: Optional[str] = None):
-    field_names = [f.name for f in fields(conf_cls)]
     sources: List[Dict[str, Any]] = [
         load_flags(fields(conf_cls)),
-        load_env(field_names, env_prefix),
+        load_env(fields(conf_cls), env_prefix),
     ]
 
     try:
         with open("config.ini", "r") as f:
             content = f.read()
+            field_names = [f.name for f in fields(conf_cls)]
             sources.append(load_config(field_names, content))
     except IOError:
         pass

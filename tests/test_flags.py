@@ -77,8 +77,7 @@ class TestString:
 
 
 class TestInt:
-    mark.parametrize("val", ("10", "0b1010", "0o12", "0xa"))
-
+    @mark.parametrize("val", ("10", "0b1010", "0o12", "0xa"))
     def test_parses_ok(self, val):
         with patch("sys.argv", ["prog", "--bar", val]):
             assert load_flags(fields(Config)) == {"bar": 10}
@@ -86,14 +85,12 @@ class TestInt:
             with patch("sys.argv", ["prog", f"--bar={val}"]):
                 assert load_flags(fields(Config)) == {"bar": 10}
 
-    mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
-
+    @mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
     def test_parses_negative_numbers(self, val):
         with patch("sys.argv", ["prog", f"--bar={val}"]):
             assert load_flags(fields(Config)) == {"bar": -10}
 
-    mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
-
+    @mark.parametrize("val", ("-10", "-0b1010", "-0o12", "-0xa"))
     def test_parses_quoted_negative_numbers(self, val):
         with patch("sys.argv", ["prog", f"--bar", f'"{val}"']):
             res = load_flags(fields(Config))
