@@ -1,6 +1,11 @@
-from dataclasses import dataclass
-from magiconf import _load, ConfigError
+from dataclasses import dataclass, fields
+from unittest.mock import patch
+
 from pytest import raises  # type: ignore
+
+from magiconf import ConfigError, _load
+from magiconf.env import load_env
+from magiconf.flags import load_flags
 
 
 @dataclass
@@ -41,3 +46,42 @@ def test_multi_sources():
     cfg = _load(Config, [{"foo": "foo1"}, {"foo": "foo2", "bar": "bar2"}])
     assert cfg.foo == "foo1"
     assert cfg.bar == "bar2"
+
+
+class TestLoadBoolean:
+    @dataclass
+    class Config:
+        foo: bool
+
+    def test_load_default(self):
+        @dataclass
+        class Config:
+            foo: bool = False
+
+        with patch("sys.argv", "prog"), patch("os.environ", {}):
+            flags = load_flags(fields(Config))
+            env = load_env(fields(Config))
+            assert _load(Config, [flags, env]).foo is False
+
+    def test_fails_if_required_missing(self):
+        with patch("sys.argv", "prog"), patch("os.environ", {}):
+            flags = load_flags(fields(self.Config))
+            env = load_env(fields(self.Config))
+            with raises(ConfigError, match="is missing"):
+                _load(self.Config, [flags, env])
+
+    def test_first_source_takes_precedence(self):
+        with patch("sys.argv", ["prog", "--foo=True"]):
+            with patch("os.environ", {"foo": "False"}):
+                flags = load_flags(fields(self.Config))
+                env = load_env(fields(self.Config))
+                cfg = _load(self.Config, [flags, env])
+                assert cfg.foo is True
+
+    def test_fall_back_to_second(self):
+        with patch("sys.argv", ["prog"]):
+            with patch("os.environ", {"foo": "true"}):
+                flags = load_flags(fields(self.Config))
+                env = load_env(fields(self.Config))
+                cfg = _load(self.Config, [flags, env])
+                assert cfg.foo is True
